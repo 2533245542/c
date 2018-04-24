@@ -1,55 +1,250 @@
-#ifndef _FS_H_
-#define _FS_H_
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdbool.h>
 
-// On-disk file system format.
-// Both the kernel and user programs use this header file.
-
-// Block 0 is unused.
-// Block 1 is super block.
-// Inodes start at block 2.
-
-#define ROOTINO 1  // root i-number
-#define BSIZE 512  // block size
-
-// File system super block
-struct superblock {
-  uint size;         // Size of file system image (blocks)
-  uint nblocks;      // Number of data blocks
-  uint ninodes;      // Number of inodes.
+struct node {
+   int data;
+   int key;
+   struct node *next;
 };
 
-#define NDIRECT 12
-#define NINDIRECT (BSIZE / sizeof(uint))
-#define MAXFILE (NDIRECT + NINDIRECT)
+struct node *head = NULL;
+struct node *current = NULL;
 
-// On-disk inode structure
-struct dinode {
-  short type;           // File type
-  short major;          // Major device number (T_DEV only)
-  short minor;          // Minor device number (T_DEV only)
-  short nlink;          // Number of links to inode in file system
-  uint size;            // Size of file (bytes)
-  uint addrs[NDIRECT+1];   // Data block addresses
-};
+//display the list
+void printList() {
+   struct node *ptr = head;
+   printf("\n[ ");
+	
+   //start from the beginning
+   while(ptr != NULL) {
+      printf("(%d,%d) ",ptr->key,ptr->data);
+      ptr = ptr->next;
+   }
+	
+   printf(" ]");
+}
 
-// Inodes per block.
-#define IPB           (BSIZE / sizeof(struct dinode))
+//insert link at the first location
+void insertFirst(int key, int data) {
+   //create a link
+   struct node *link = (struct node*) malloc(sizeof(struct node));
+	
+   link->key = key;
+   link->data = data;
+	
+   //point it to old first node
+   link->next = head;
+	
+   //point first to new first node
+   head = link;
+}
 
-// Block containing inode i
-#define IBLOCK(i)     ((i) / IPB + 2)
+//delete first item
+struct node* deleteFirst() {
 
-// Bitmap bits per block
-#define BPB           (BSIZE*8)
+   //save reference to first link
+   struct node *tempLink = head;
+	
+   //mark next to first link as first 
+   head = head->next;
+	
+   //return the deleted link
+   return tempLink;
+}
 
-// Block containing bit for block b
-#define BBLOCK(b, ninodes) (b/BPB + (ninodes)/IPB + 3)
+//is list empty
+bool isEmpty() {
+   return head == NULL;
+}
 
-// Directory is a file containing a sequence of dirent structures.
-#define DIRSIZ 14
+int length() {
+   int length = 0;
+   struct node *current;
+	
+   for(current = head; current != NULL; current = current->next) {
+      length++;
+   }
+	
+   return length;
+}
 
-struct dirent {
-  ushort inum;
-  char name[DIRSIZ];
-};
+//find a link with given key
+struct node* find(int key) {
 
-#endif // _FS_H_
+   //start from the first link
+   struct node* current = head;
+
+   //if list is empty
+   if(head == NULL) {
+      return NULL;
+   }
+
+   //navigate through list
+   while(current->key != key) {
+	
+      //if it is last node
+      if(current->next == NULL) {
+         return NULL;
+      } else {
+         //go to next link
+         current = current->next;
+      }
+   }      
+	
+   //if data found, return the current Link
+   return current;
+}
+
+//delete a link with given key
+struct node* delete(int key) {
+
+   //start from the first link
+   struct node* current = head;
+   struct node* previous = NULL;
+	
+   //if list is empty
+   if(head == NULL) {
+      return NULL;
+   }
+
+   //navigate through list
+   while(current->key != key) {
+
+      //if it is last node
+      if(current->next == NULL) {
+         return NULL;
+      } else {
+         //store reference to current link
+         previous = current;
+         //move to next link
+         current = current->next;
+      }
+   }
+
+   //found a match, update the link
+   if(current == head) {
+      //change first to point to next link
+      head = head->next;
+   } else {
+      //bypass the current link
+      previous->next = current->next;
+   }    
+	
+   return current;
+}
+
+void sort() {
+
+   int i, j, k, tempKey, tempData;
+   struct node *current;
+   struct node *next;
+	
+   int size = length();
+   k = size ;
+	
+   for ( i = 0 ; i < size - 1 ; i++, k-- ) {
+      current = head;
+      next = head->next;
+		
+      for ( j = 1 ; j < k ; j++ ) {   
+
+         if ( current->data > next->data ) {
+            tempData = current->data;
+            current->data = next->data;
+            next->data = tempData;
+
+            tempKey = current->key;
+            current->key = next->key;
+            next->key = tempKey;
+         }
+			
+         current = current->next;
+         next = next->next;
+      }
+   }   
+}
+
+void reverse(struct node** head_ref) {
+   struct node* prev   = NULL;
+   struct node* current = *head_ref;
+   struct node* next;
+	
+   while (current != NULL) {
+      next  = current->next;
+      current->next = prev;   
+      prev = current;
+      current = next;
+   }
+	
+   *head_ref = prev;
+}
+
+void main() {
+   char* this = "asdf";
+   insertFirst(1,10);
+   insertFirst(2,20);
+   insertFirst(3,30);
+   insertFirst(4,1);
+   insertFirst(5,40);
+   insertFirst(6,56); 
+
+   printf("Original List: "); 
+	
+   //print list
+   printList();
+
+   while(!isEmpty()) {            
+      struct node *temp = deleteFirst();
+      printf("\nDeleted value:");
+      printf("(%d,%d) ",temp->key,temp->data);
+   }  
+	
+   printf("\nList after deleting all items: ");
+   printList();
+   insertFirst(1,10);
+   insertFirst(2,20);
+   insertFirst(3,30);
+   insertFirst(4,1);
+   insertFirst(5,40);
+   insertFirst(6,56);
+   
+   printf("\nRestored List: ");
+   printList();
+   printf("\n");  
+
+   struct node *foundLink = find(4);
+	
+   if(foundLink != NULL) {
+      printf("Element found: ");
+      printf("(%d,%d) ",foundLink->key,foundLink->data);
+      printf("\n");  
+   } else {
+      printf("Element not found.");
+   }
+
+   delete(4);
+   printf("List after deleting an item: ");
+   printList();
+   printf("\n");
+   foundLink = find(4);
+	
+   if(foundLink != NULL) {
+      printf("Element found: ");
+      printf("(%d,%d) ",foundLink->key,foundLink->data);
+      printf("\n");
+   } else {
+      printf("Element not found.");
+   }
+	
+   printf("\n");
+   sort();
+	
+   printf("List after sorting the data: ");
+   printList();
+	
+   reverse(&head);
+   printf("\nList after reversing the data: ");
+   printList();
+}
